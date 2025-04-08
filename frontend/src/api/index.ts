@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8090/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -29,7 +29,7 @@ api.interceptors.response.use(
 
 export const uploadFile = async (formData: FormData) => {
   const response = await api.post(
-    '/upload/file/',
+    '/upload/file',
     formData,
     {
       headers: {
@@ -46,7 +46,7 @@ export const transFile = async (params: {
   task_id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
 }> => {
-  const response = await api.post('/transform/convert/', params,);
+  const response = await api.post('/transform/convert', params,);
   return response.data;
 };
 

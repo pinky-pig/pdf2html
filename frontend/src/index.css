@@ -17,25 +17,6 @@
     @apply min-h-screen transition-colors duration-300;
     font-family: 'Inter', sans-serif;
   }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Orbitron', sans-serif;
-  }
-  
-  /* 确保输入框在不同模式下有正确的颜色 */
-  .dark input, .dark textarea, .dark select {
-    @apply bg-gray-800 border-gray-700 text-white;
-  }
-  
-  /* 浅色模式下的输入框样式 */
-  input, textarea, select {
-    @apply bg-white border-gray-300 text-gray-900;
-  }
-  
-  /* 确保按钮在暗色模式下有正确的颜色 */
-  .dark button:not(.bg-transparent) {
-    @apply bg-gray-800 text-white border-gray-700;
-  }
 }
 
 @layer components {

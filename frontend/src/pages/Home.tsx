@@ -1,12 +1,9 @@
 import { FC, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BackgroundEffect } from '../components/BackgroundEffect';
-import { FuturisticButton } from '../components/FuturisticButton';
 import { transFile, uploadFile, getTaskStatus } from '../api';
 import { useFileStore } from '../store/fileStore';
 const Home: FC = () => {
-  const isDarkMode = 'dark';
-
   const { convertHistory, addHistoryItem, updateHistoryItem } = useFileStore();
 
   const [tempUploadFileName, setTempUploadFileName] = useState('');
@@ -67,8 +64,8 @@ const Home: FC = () => {
   }
 
   useEffect(() => {
-    console.log('页面加载完成，开始轮询任务状态')
     convertHistory.forEach(async (item) => {
+      console.log('页面加载完成，开始轮询任务状态')
       if (item.status === 'pending') {
         const status = await pollTaskStatus(item.taskId);
         updateHistoryItem(item.taskId, {
@@ -207,7 +204,7 @@ const Home: FC = () => {
                 className="flex flex-col md:flex-row justify-center gap-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.8 }}
+                transition={{ delay: 0.8, duration: 0.8 }}
               >
                 <table className="w-full border-collapse">
                   <thead>
