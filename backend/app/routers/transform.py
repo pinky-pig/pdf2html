@@ -54,7 +54,7 @@ async def process_pdf_background(task_id: str, pdf_url: str, work_dir: str):
         
         # 在线程池中执行耗时的文件处理
         loop = asyncio.get_running_loop()
-        # 将同步的 process_pdf_url 函数放到线程池中执行
+        # 将同步的处理函数放到线程池中执行
         success, result = await loop.run_in_executor(
             executor,
             partial(process_pdf_url, pdf_url, work_dir)
@@ -181,7 +181,7 @@ def convert_pdf_to_html(pdf_path: str, output_dir: str) -> tuple[bool, str]:
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
         # 生成唯一的输出文件名
-        pdf_name = f"{os.urandom(8).hex()}_{os.path.splitext(os.path.basename(pdf_path))[0]}"
+        pdf_name = f"{os.path.splitext(os.path.basename(pdf_path))[0]}"
         output_html = os.path.join(output_dir, f"{pdf_name}.html")
         
         # 构建docker命令
@@ -190,6 +190,7 @@ def convert_pdf_to_html(pdf_path: str, output_dir: str) -> tuple[bool, str]:
             "--mount", f"src={os.path.dirname(os.path.abspath(pdf_path))},target=/pdf,type=bind",
             "pdf2htmlex/pdf2htmlex:0.18.8.rc2-master-20200820-ubuntu-20.04-x86_64",
             "--zoom", "1.3",
+            "--process-outline", "0",
             f"/pdf/{os.path.basename(pdf_path)}",
         ]
         
@@ -210,7 +211,7 @@ def process_pdf_url(pdf_url: str, work_dir: str) -> tuple[bool, str]:
     """
     try:
         # 创建临时PDF文件名
-        temp_pdf = f"{os.urandom(8).hex()}_temp.pdf"
+        temp_pdf = f"{os.path.splitext(os.path.basename(pdf_url))[0]}.pdf"
         pdf_path = os.path.join(work_dir, temp_pdf)
         
         # 解析 URL

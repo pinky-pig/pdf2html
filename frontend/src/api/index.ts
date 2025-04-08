@@ -46,13 +46,22 @@ export const transFile = async (params: {
   task_id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
 }> => {
-  const response = await api.post( '/transform/convert/', params, );
+  const response = await api.post('/transform/convert/', params,);
   return response.data;
 };
 
-export const getTaskStatus = async (task_id: string) => {
+export const getTaskStatus = async (task_id: string): Promise<
+  {
+    created_at: number
+    error: string | null
+    pdf_url: string
+    result: string | null
+    status: 'pending' | 'processing' | 'completed' | 'failed'
+    task_id: string
+    updated_at: number
+  }> => {
   const response = await api.get(`/transform/task/${task_id}`);
   return response.data;
-};  
+};
 
 export default api;

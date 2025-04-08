@@ -7,7 +7,7 @@ import { useFileStore } from '../store/fileStore';
 const Home: FC = () => {
   const isDarkMode = 'dark';
 
-  const { convertHistory, setConvertHistory } = useFileStore();
+  const { convertHistory, addHistoryItem, updateHistoryItem } = useFileStore();
 
   async function handleUploadFile() {
     const file = document.getElementById('file') as HTMLInputElement;
@@ -27,40 +27,61 @@ const Home: FC = () => {
   async function handleTransFile(tempFileUrl: string, file: File) {
     if (tempFileUrl) {
       const response = await transFile({ pdf_url: tempFileUrl });
-      // 开始轮询任务状态
-      setConvertHistory([...convertHistory, { originalFile: { name: file.name, size: file.size, type: file.type, url: tempFileUrl }, status: response.status, taskId: response.task_id }]);
-      await pollTaskStatus(response.task_id);
+      
+      // 使用 addHistoryItem 添加新记录
+      addHistoryItem({ 
+        originalFile: { 
+          name: file.name, 
+          size: file.size, 
+          type: file.type, 
+          url: tempFileUrl 
+        }, 
+        status: response.status, 
+        taskId: response.task_id 
+      });
+
+      try {
+        const taskResult = await pollTaskStatus(response.task_id);
+        // 使用 updateHistoryItem 更新状态
+        updateHistoryItem(response.task_id, {
+          status: taskResult.status,
+          result: taskResult.result
+        });
+      } catch (error) {
+        updateHistoryItem(response.task_id, {
+          status: 'failed',
+          error: error as string
+        });
+      }
     }
   }
-
-  useEffect(() => {
-    console.log('开始轮询任务状态')
-    convertHistory.forEach(async (item) => {
-      if (item.status === 'pending') {
-        // const htmlFileUrl = await pollTaskStatus(item.taskId);
-        // item.status = 'completed';
-        // item.htmlFileUrl = htmlFileUrl;
-        // setConvertHistory([...convertHistory, item]);
-      }
-    });
-  }, [convertHistory]);
 
   useEffect(() => {
     console.log('页面加载完成，开始轮询任务状态')
     convertHistory.forEach(async (item) => {
       if (item.status === 'pending') {
-        const htmlFileUrl = await pollTaskStatus(item.taskId);
-        item.status = 'completed';
-        item.htmlFileUrl = htmlFileUrl;
-        setConvertHistory([...convertHistory, item]);
+        const status = await pollTaskStatus(item.taskId);
+        updateHistoryItem(item.taskId, {
+          status: status.status,
+          result: status.result,
+          pdfUrl: status.pdf_url,
+          updatedAt: status.updated_at
+        });
       }
     });
   }, []);
 
-
   
 
-  async function pollTaskStatus(taskId: string): Promise<string> {
+  async function pollTaskStatus(taskId: string): Promise<{
+    created_at: number
+    error: string | null
+    pdf_url: string
+    result: string | null
+    status: 'pending' | 'processing' | 'completed' | 'failed'
+    task_id: string
+    updated_at: number
+  }> {
     return new Promise((resolve, reject) => {
       const checkStatus = async () => {
         try {
@@ -68,7 +89,7 @@ const Home: FC = () => {
 
           switch (response.status) {
             case 'completed':
-              resolve(response.result!);
+              resolve(response);
               break;
             case 'failed':
               reject(new Error(response.error || '转换失败'));
@@ -152,18 +173,19 @@ const Home: FC = () => {
           </motion.div>
 
 
-          {/* <motion.div
-            className="flex flex-col md:flex-row justify-center gap-4 mt-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
-          >
+          <div>
             {convertHistory.map((item) => (
               <div key={item.taskId}>
-                {item.originalFile.name}
+                <p>文件名: {item.originalFile.name}</p>
+                <p>状态: {item.status}</p>
+                {item.result && (
+                  <a href={'http://localhost:8090'+item.result} target="_blank" rel="noopener noreferrer">
+                    查看结果
+                  </a>
+                )}
               </div>
             ))}
-          </motion.div> */}
+          </div>
         </motion.div>
 
 
