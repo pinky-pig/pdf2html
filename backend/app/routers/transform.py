@@ -6,9 +6,16 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, HttpUrl, AnyHttpUrl
 from urllib.parse import urlparse
 import shutil
-from ..task_manager import task_manager
 from ..models.task import TaskStatus
 from fastapi_utils.tasks import repeat_every
+from enum import Enum
+from typing import Optional, Dict
+from datetime import datetime, timedelta
+from ..utils.redis_manager import redis_manager
+import time
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
+from functools import partial
 
 router = APIRouter(
     prefix="/api/transform",
@@ -24,35 +31,53 @@ UPLOADS_DIR = os.environ.get("UPLOADS_DIR", str(BASE_DIR / "uploads"))
 CONVERTS_DIR = Path(UPLOADS_DIR) / "converts"
 CONVERTS_DIR.mkdir(parents=True, exist_ok=True)
 
+# 定义任务状态枚举
+class TaskStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
 class PDFRequest(BaseModel):
     pdf_url: AnyHttpUrl
 
-async def process_pdf_task(task_id: str, pdf_url: str, work_dir: str):
-    """异步处理PDF转换任务"""
+# 创建线程池
+executor = ThreadPoolExecutor(max_workers=3)  # 可以根据需要调整线程数
+
+async def process_pdf_background(task_id: str, pdf_url: str, work_dir: str):
+    """
+    后台处理PDF转换
+    """
     try:
-        task_manager.update_task(task_id, TaskStatus.PROCESSING)
+        # 更新状态为处理中
+        await redis_manager.update_task_status(task_id, TaskStatus.PROCESSING)
         
-        # 执行转换
-        success, result = process_pdf_url(pdf_url, work_dir)
+        # 在线程池中执行耗时的文件处理
+        loop = asyncio.get_running_loop()
+        # 将同步的 process_pdf_url 函数放到线程池中执行
+        success, result = await loop.run_in_executor(
+            executor,
+            partial(process_pdf_url, pdf_url, work_dir)
+        )
         
         if success:
-            # 成功后更新任务状态
-            task_manager.update_task(
-                task_id, 
+            # 更新状态为完成
+            await redis_manager.update_task_status(
+                task_id,
                 TaskStatus.COMPLETED,
                 result=f"/uploads/converts/{os.path.basename(result)}"
             )
         else:
-            # 失败后更新任务状态
-            task_manager.update_task(
+            # 更新状态为失败
+            await redis_manager.update_task_status(
                 task_id,
                 TaskStatus.FAILED,
                 error=result
             )
             
     except Exception as e:
-        # 发生异常时更新任务状态
-        task_manager.update_task(
+        # 发生异常时更新状态
+        await redis_manager.update_task_status(
             task_id,
             TaskStatus.FAILED,
             error=str(e)
@@ -63,12 +88,25 @@ async def convert_pdf(request: PDFRequest, background_tasks: BackgroundTasks):
     """
     启动PDF转换任务
     """
-    # 创建新任务
-    task_id = task_manager.create_task()
+    task_id = os.urandom(8).hex()
     
-    # 在后台执行转换任务
+    # 创建任务记录
+    task_data = {
+        "task_id": task_id,
+        "status": TaskStatus.PENDING,
+        "created_at": time.time(),
+        "updated_at": time.time(),
+        "pdf_url": str(request.pdf_url),
+        "result": None,
+        "error": None
+    }
+    
+    # 保存到Redis
+    await redis_manager.set_task(task_id, task_data)
+    
+    # 在后台启动转换任务
     background_tasks.add_task(
-        process_pdf_task,
+        process_pdf_background,
         task_id,
         str(request.pdf_url),
         str(CONVERTS_DIR)
@@ -84,22 +122,19 @@ async def get_task_status(task_id: str):
     """
     获取任务状态
     """
-    task = task_manager.get_task(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="任务不存在")
-    
-    return {
-        "task_id": task.id,
-        "status": task.status,
-        "result": task.result,
-        "error": task.error
-    }
+    try:
+        task = await redis_manager.get_task(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="任务不存在")
+        return task
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取任务状态失败: {str(e)}")
 
 # 定期清理旧任务
 @router.on_event("startup")
-@repeat_every(seconds=3600)  # 每小时执行一次
-async def clean_old_tasks():
-    task_manager.clean_old_tasks()
+@repeat_every(seconds=3600)
+async def cleanup_old_tasks():
+    await redis_manager.cleanup_old_tasks()
 
 def download_pdf(url: str, save_path: str) -> bool:
     """
@@ -175,9 +210,7 @@ def process_pdf_url(pdf_url: str, work_dir: str) -> tuple[bool, str]:
     """
     try:
         # 创建临时PDF文件名
-        # http://localhost:8090/uploads/4503084ae82832a4_paper.pdf
-
-        temp_pdf = f"{os.urandom(8).hex()}_{pdf_url.split('uploads/')[1]}.pdf"
+        temp_pdf = f"{os.urandom(8).hex()}_temp.pdf"
         pdf_path = os.path.join(work_dir, temp_pdf)
         
         # 解析 URL
@@ -205,7 +238,7 @@ def process_pdf_url(pdf_url: str, work_dir: str) -> tuple[bool, str]:
             except Exception as e:
                 return False, f"本地文件处理失败: {str(e)}"
         else:
-            # 对于其他URL（如 VSCode Live Server），使用 requests 下载
+            # 对于其他URL，使用 requests 下载
             success = download_pdf(pdf_url, pdf_path)
             if not success:
                 return False, "PDF下载失败"

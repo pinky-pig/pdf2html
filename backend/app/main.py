@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from .routers import transform, upload
 import os
 from pathlib import Path
+from .utils.redis_manager import redis_manager
 
 app = FastAPI(title="PDF2HTML API", description="A PDF to HTML converter service API")
 
@@ -34,10 +35,6 @@ app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 if Path(STATIC_DIR).exists():
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
-@app.get("/api/health")
-def health_check():
-    return {"status": "healthy"}
-
 # 导入路由
 app.include_router(transform.router)
 app.include_router(upload.router)
@@ -46,5 +43,17 @@ app.include_router(upload.router)
 @app.get("/api")
 async def api_root():
     return {"message": "API服务正常运行"}
+
+# task_redis启动
+@app.on_event("startup")
+async def startup_event():
+    # Redis 连接已在 RedisManager 初始化时建立
+    pass
+
+# task_redis关闭
+@app.on_event("shutdown")
+async def shutdown_event():
+    # 关闭 Redis 连接
+    await redis_manager.redis.close()
 
 

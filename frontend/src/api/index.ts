@@ -42,9 +42,17 @@ export const uploadFile = async (formData: FormData) => {
 
 export const transFile = async (params: {
   pdf_url: string;
-}) => {
+}): Promise<{
+  task_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+}> => {
   const response = await api.post( '/transform/convert/', params, );
   return response.data;
 };
+
+export const getTaskStatus = async (task_id: string) => {
+  const response = await api.get(`/transform/task/${task_id}`);
+  return response.data;
+};  
 
 export default api;

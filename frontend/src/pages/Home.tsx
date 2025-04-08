@@ -1,8 +1,8 @@
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BackgroundEffect } from '../components/BackgroundEffect';
 import { FuturisticButton } from '../components/FuturisticButton';
-import { transFile, uploadFile } from '../api';
+import { transFile, uploadFile, getTaskStatus } from '../api';
 import { useFileStore } from '../store/fileStore';
 const Home: FC = () => {
   const isDarkMode = 'dark';
@@ -12,7 +12,7 @@ const Home: FC = () => {
   async function handleUploadFile() {
     const file = document.getElementById('file') as HTMLInputElement;
     const fileList = file.files;
-    
+
     if (fileList && fileList.length > 0) {
       const formData = new FormData();
       formData.append('file', fileList[0]);
@@ -27,10 +27,64 @@ const Home: FC = () => {
   async function handleTransFile(tempFileUrl: string, file: File) {
     if (tempFileUrl) {
       const response = await transFile({ pdf_url: tempFileUrl });
-      console.log(response);
-      const htmlFileUrl = 'http://localhost:8090' + response.url;
-      setConvertHistory([...convertHistory, { originalFile: { name: file.name, size: file.size, type: file.type, url: tempFileUrl }, htmlFileUrl, isConverting: false }]);
+      // 开始轮询任务状态
+      setConvertHistory([...convertHistory, { originalFile: { name: file.name, size: file.size, type: file.type, url: tempFileUrl }, status: response.status, taskId: response.task_id }]);
+      await pollTaskStatus(response.task_id);
     }
+  }
+
+  useEffect(() => {
+    console.log('开始轮询任务状态')
+    convertHistory.forEach(async (item) => {
+      if (item.status === 'pending') {
+        // const htmlFileUrl = await pollTaskStatus(item.taskId);
+        // item.status = 'completed';
+        // item.htmlFileUrl = htmlFileUrl;
+        // setConvertHistory([...convertHistory, item]);
+      }
+    });
+  }, [convertHistory]);
+
+  useEffect(() => {
+    console.log('页面加载完成，开始轮询任务状态')
+    convertHistory.forEach(async (item) => {
+      if (item.status === 'pending') {
+        const htmlFileUrl = await pollTaskStatus(item.taskId);
+        item.status = 'completed';
+        item.htmlFileUrl = htmlFileUrl;
+        setConvertHistory([...convertHistory, item]);
+      }
+    });
+  }, []);
+
+
+  
+
+  async function pollTaskStatus(taskId: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const checkStatus = async () => {
+        try {
+          const response = await getTaskStatus(taskId);
+
+          switch (response.status) {
+            case 'completed':
+              resolve(response.result!);
+              break;
+            case 'failed':
+              reject(new Error(response.error || '转换失败'));
+              break;
+            default:
+              // 继续轮询
+              setTimeout(checkStatus, 2000); // 每2秒检查一次
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      // 开始轮询
+      checkStatus();
+    });
   }
 
   async function handleOpenFile(htmlFileUrl: string) {
@@ -38,6 +92,7 @@ const Home: FC = () => {
       window.open(htmlFileUrl, '_blank');
     }
   }
+
 
   return (
     <>
@@ -89,12 +144,26 @@ const Home: FC = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6, duration: 0.8 }}
           >
-              {/* {
+            {/* {
                 htmlFileUrl && (<FuturisticButton  onClick={handleOpenFile} variant="outline" size="lg">
                   打开HTML
                 </FuturisticButton>) 
               } */}
           </motion.div>
+
+
+          {/* <motion.div
+            className="flex flex-col md:flex-row justify-center gap-4 mt-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.8 }}
+          >
+            {convertHistory.map((item) => (
+              <div key={item.taskId}>
+                {item.originalFile.name}
+              </div>
+            ))}
+          </motion.div> */}
         </motion.div>
 
 
