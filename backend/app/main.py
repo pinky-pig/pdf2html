@@ -21,6 +21,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 先导入路由，确保 API 优先级高于静态文件
+app.include_router(transform.router, prefix="/api")
+app.include_router(upload.router, prefix="/api")
+
 # 从环境变量获取目录路径，默认使用相对路径
 STATIC_DIR = os.environ.get("STATIC_DIR", str(BASE_DIR / "static"))
 if os.path.exists(STATIC_DIR):
@@ -34,15 +38,6 @@ app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 # 挂载静态文件目录 (必须放在其它路由之后)
 if Path(STATIC_DIR).exists():
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
-
-# 导入路由
-app.include_router(transform.router)
-app.include_router(upload.router)
-
-# API首页
-@app.get("/api")
-async def api_root():
-    return {"message": "API服务正常运行"}
 
 # task_redis启动
 @app.on_event("startup")

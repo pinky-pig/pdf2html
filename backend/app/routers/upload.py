@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 
 router = APIRouter(
-    prefix="/api/upload",  # 注意：使用 /api 前缀避免与前端路由冲突
+    prefix="/upload",  # 添加 /upload 前缀
     tags=["upload"]
 )
 

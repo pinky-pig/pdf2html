@@ -18,7 +18,7 @@ import asyncio
 from functools import partial
 
 router = APIRouter(
-    prefix="/api/transform",
+    prefix="/transform",
     tags=["transform"],
     responses={404: {"description": "Not found"}},
 )
