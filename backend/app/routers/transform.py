@@ -2,10 +2,13 @@ import os
 import subprocess
 import requests
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, HttpUrl
+from fastapi import APIRouter, HTTPException, BackgroundTasks
+from pydantic import BaseModel, HttpUrl, AnyHttpUrl
 from urllib.parse import urlparse
 import shutil
+from ..task_manager import task_manager
+from ..models.task import TaskStatus
+from fastapi_utils.tasks import repeat_every
 
 router = APIRouter(
     prefix="/api/transform",
@@ -22,21 +25,81 @@ CONVERTS_DIR = Path(UPLOADS_DIR) / "converts"
 CONVERTS_DIR.mkdir(parents=True, exist_ok=True)
 
 class PDFRequest(BaseModel):
-    pdf_url: HttpUrl
+    pdf_url: AnyHttpUrl
+
+async def process_pdf_task(task_id: str, pdf_url: str, work_dir: str):
+    """异步处理PDF转换任务"""
+    try:
+        task_manager.update_task(task_id, TaskStatus.PROCESSING)
+        
+        # 执行转换
+        success, result = process_pdf_url(pdf_url, work_dir)
+        
+        if success:
+            # 成功后更新任务状态
+            task_manager.update_task(
+                task_id, 
+                TaskStatus.COMPLETED,
+                result=f"/uploads/converts/{os.path.basename(result)}"
+            )
+        else:
+            # 失败后更新任务状态
+            task_manager.update_task(
+                task_id,
+                TaskStatus.FAILED,
+                error=result
+            )
+            
+    except Exception as e:
+        # 发生异常时更新任务状态
+        task_manager.update_task(
+            task_id,
+            TaskStatus.FAILED,
+            error=str(e)
+        )
 
 @router.post("/convert")
-async def convert_pdf(request: PDFRequest):
-    # 使用 converts 目录作为工作目录
-    success, result = process_pdf_url(str(request.pdf_url), str(CONVERTS_DIR))
+async def convert_pdf(request: PDFRequest, background_tasks: BackgroundTasks):
+    """
+    启动PDF转换任务
+    """
+    # 创建新任务
+    task_id = task_manager.create_task()
     
-    if not success:
-        raise HTTPException(status_code=500, detail=result)
+    # 在后台执行转换任务
+    background_tasks.add_task(
+        process_pdf_task,
+        task_id,
+        str(request.pdf_url),
+        str(CONVERTS_DIR)
+    )
     
-    # 返回相对于 uploads 目录的路径
     return {
-        "status": "success", 
-        "url": f"/uploads/converts/{os.path.basename(result.split('_')[1])}_temp.html"
+        "task_id": task_id,
+        "status": TaskStatus.PENDING
     }
+
+@router.get("/task/{task_id}")
+async def get_task_status(task_id: str):
+    """
+    获取任务状态
+    """
+    task = task_manager.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    
+    return {
+        "task_id": task.id,
+        "status": task.status,
+        "result": task.result,
+        "error": task.error
+    }
+
+# 定期清理旧任务
+@router.on_event("startup")
+@repeat_every(seconds=3600)  # 每小时执行一次
+async def clean_old_tasks():
+    task_manager.clean_old_tasks()
 
 def download_pdf(url: str, save_path: str) -> bool:
     """
@@ -92,7 +155,7 @@ def convert_pdf_to_html(pdf_path: str, output_dir: str) -> tuple[bool, str]:
             "--mount", f"src={os.path.dirname(os.path.abspath(pdf_path))},target=/pdf,type=bind",
             "pdf2htmlex/pdf2htmlex:0.18.8.rc2-master-20200820-ubuntu-20.04-x86_64",
             "--zoom", "1.3",
-            f"/pdf/{os.path.basename(pdf_path)}"
+            f"/pdf/{os.path.basename(pdf_path)}",
         ]
         
         # 执行转换命令
@@ -112,7 +175,9 @@ def process_pdf_url(pdf_url: str, work_dir: str) -> tuple[bool, str]:
     """
     try:
         # 创建临时PDF文件名
-        temp_pdf = f"{os.urandom(8).hex()}_temp.pdf"
+        # http://localhost:8090/uploads/4503084ae82832a4_paper.pdf
+
+        temp_pdf = f"{os.urandom(8).hex()}_{pdf_url.split('uploads/')[1]}.pdf"
         pdf_path = os.path.join(work_dir, temp_pdf)
         
         # 解析 URL
