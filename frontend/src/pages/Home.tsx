@@ -1,4 +1,4 @@
-import { FC, useEffect } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BackgroundEffect } from '../components/BackgroundEffect';
 import { FuturisticButton } from '../components/FuturisticButton';
@@ -9,6 +9,15 @@ const Home: FC = () => {
 
   const { convertHistory, addHistoryItem, updateHistoryItem } = useFileStore();
 
+  const [tempUploadFileName, setTempUploadFileName] = useState('');
+
+  function handleGetFileFromInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files;
+    if (file && file.length > 0) {
+      setTempUploadFileName(file[0].name);
+    }
+  }
+
   async function handleUploadFile() {
     const file = document.getElementById('file') as HTMLInputElement;
     const fileList = file.files;
@@ -18,26 +27,27 @@ const Home: FC = () => {
       formData.append('file', fileList[0]);
       const response = await uploadFile(formData);
 
-      const tempFileUrl = 'http://localhost:8090' + response.url;
-
-      handleTransFile(tempFileUrl, fileList[0])
+      handleTransFile('http://localhost:8090' + response.url, fileList[0])
+    }
+    else {
+      alert('请先选择文件')
     }
   }
 
   async function handleTransFile(tempFileUrl: string, file: File) {
     if (tempFileUrl) {
       const response = await transFile({ pdf_url: tempFileUrl });
-      
+
       // 使用 addHistoryItem 添加新记录
-      addHistoryItem({ 
-        originalFile: { 
-          name: file.name, 
-          size: file.size, 
-          type: file.type, 
-          url: tempFileUrl 
-        }, 
-        status: response.status, 
-        taskId: response.task_id 
+      addHistoryItem({
+        originalFile: {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: tempFileUrl
+        },
+        status: response.status,
+        taskId: response.task_id
       });
 
       try {
@@ -70,8 +80,6 @@ const Home: FC = () => {
       }
     });
   }, []);
-
-  
 
   async function pollTaskStatus(taskId: string): Promise<{
     created_at: number
@@ -119,32 +127,40 @@ const Home: FC = () => {
     <>
       <BackgroundEffect />
 
-      <div className={`relative min-h-screen flex flex-col justify-center items-center p-4 overflow-hidden ${isDarkMode ? 'bg-gray-900 text-white' : ''}`}>
+      <div className={`relative min-h-screen p-8 font-mono text-sm flex flex-col justify-start items-start overflow-hidden }`}>
+
         <motion.div
-          className="max-w-4xl mx-auto text-center z-10"
+          className=" z-10 gap-8 flex flex-col"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <motion.h1
-            className="text-5xl md:text-7xl font-bold mb-8 leading-tight"
+
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.8 }}
           >
-            <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent animate-gradient-x">
-              PDF 转 HTML
-            </span>
-          </motion.h1>
+            <div className="flex items-center gap-2 font-medium">
+              <a className="flex items-center gap-2" href="/">blog</a> /
+              <a href="https://twitter.com/shadcn" target="_blank" rel="noreferrer">twitter</a> /
+              <a href="https://github.com/shadcn" target="_blank" rel="noreferrer">github</a>
+            </div>
+          </motion.div>
 
-          <motion.p
-            className={`text-xl md:text-2xl mb-12 max-w-2xl mx-auto ${isDarkMode ? 'text-gray-300' : ''}`}
+          <motion.span
+            className="text-balance font-medium"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
           >
-            上传PDF文件，生成HTML文件
-          </motion.p>
+            <p>
+              使用 pdf2htmlEX 将 PDF 转换为 HTML
+            </p>
+            <p>
+              上传 PDF 文件，生成 HTML 文件
+            </p>
+          </motion.span>
 
           <motion.div
             className="flex flex-col md:flex-row justify-center gap-4"
@@ -152,40 +168,81 @@ const Home: FC = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6, duration: 0.8 }}
           >
-            <input accept="application/pdf" type="file" id="file" />
-            <FuturisticButton onClick={handleUploadFile} variant="neon" size="lg">
-              上传
-            </FuturisticButton>
-          </motion.div>
+            <p
+              onClick={() => {
+                const file = document.getElementById('file') as HTMLInputElement;
+                file.click();
+              }}
+              className="w-full bg-white border flex justify-start items-center border-gray-200  h-7 px-2"
+            >
+              <span
+                className={`text-xs font-mono ${tempUploadFileName ? 'text-black' : 'text-gray-400'}`}
+              >
+                {tempUploadFileName || '点击选择文件'}
+              </span>
+            </p>
 
+            <button
+              type="submit"
+              onClick={handleUploadFile}
+              className="h-7 w-16 flex-shrink-0 px-2 bg-[#e0e0e0] border border-[#919191] text-black no-underline"
+            >转换</button>
+
+            <input onChange={handleGetFileFromInput} className="hidden" accept="application/pdf" type="file" id="file" />
+          </motion.div>
 
           <motion.div
-            className="flex flex-col md:flex-row justify-center gap-4 mt-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
+            transition={{ delay: 0.8, duration: 0.8 }}
           >
-            {/* {
-                htmlFileUrl && (<FuturisticButton  onClick={handleOpenFile} variant="outline" size="lg">
-                  打开HTML
-                </FuturisticButton>) 
-              } */}
+            <a href="https://github.com/pdf2htmlEX/pdf2htmlEX" target="_blank" rel="noopener noreferrer">
+              去看一下 pdf2htmlEX 的仓库
+            </a>
           </motion.div>
 
+          {
+            convertHistory.length > 0 && (
+              <motion.div
+                className="flex flex-col md:flex-row justify-center gap-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8 }}
+              >
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="border border-gray-300 p-2 ">文件名</th>
+                      <th className="border border-gray-300 p-2">状态</th>
+                      <th className="border border-gray-300 p-2">查看结果</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {convertHistory.map((item) => (
+                      <tr key={item.taskId}>
+                        <td className="border border-gray-300 p-2">{item.originalFile.name}</td>
+                        <td className="border border-gray-300 p-2">{item.status}</td>
+                        <td className="border border-gray-300 p-2">
+                          {item.result ? (
+                            <a
+                              href={'http://localhost:8090' + item.result}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              查看结果
+                            </a>
+                          ) : (
+                            '处理中...' // 或者显示一个占位符，比如 "处理中..."
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </motion.div>
+            )
+          }
 
-          <div>
-            {convertHistory.map((item) => (
-              <div key={item.taskId}>
-                <p>文件名: {item.originalFile.name}</p>
-                <p>状态: {item.status}</p>
-                {item.result && (
-                  <a href={'http://localhost:8090'+item.result} target="_blank" rel="noopener noreferrer">
-                    查看结果
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
         </motion.div>
 
 
