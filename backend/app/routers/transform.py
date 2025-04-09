@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 import shutil
 from ..models.task import TaskStatus
 from fastapi_utils.tasks import repeat_every
-from enum import Enum
 from ..utils.redis_manager import redis_manager
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -32,14 +31,6 @@ BASE_DIR = Path(__file__).parent.parent.parent
 UPLOADS_DIR = os.environ.get("UPLOADS_DIR", str(BASE_DIR / "uploads"))
 CONVERTS_DIR = Path(UPLOADS_DIR) / "converts"
 CONVERTS_DIR.mkdir(parents=True, exist_ok=True)
-
-# 定义任务状态枚举
-class TaskStatus(str, Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
 class PDFRequest(BaseModel):
     pdf_url: AnyHttpUrl
 
@@ -52,7 +43,7 @@ async def process_pdf_background(task_id: str, pdf_url: str, work_dir: str):
     """
     try:
         # 更新状态为处理中
-        await redis_manager.update_task_status(task_id, TaskStatus.PROCESSING)
+        await redis_manager.update_task_status(task_id, TaskStatus.PROCESSING) # type: ignore
         
         # 在线程池中执行耗时的文件处理
         loop = asyncio.get_running_loop()
@@ -66,14 +57,14 @@ async def process_pdf_background(task_id: str, pdf_url: str, work_dir: str):
             # 更新状态为完成
             await redis_manager.update_task_status(
                 task_id,
-                TaskStatus.COMPLETED,
+                TaskStatus.COMPLETED, # type: ignore
                 result=f"/uploads/converts/{os.path.basename(result)}"
             )
         else:
             # 更新状态为失败
             await redis_manager.update_task_status(
                 task_id,
-                TaskStatus.FAILED,
+                TaskStatus.FAILED, # type: ignore
                 error=result
             )
             
@@ -81,7 +72,7 @@ async def process_pdf_background(task_id: str, pdf_url: str, work_dir: str):
         # 发生异常时更新状态
         await redis_manager.update_task_status(
             task_id,
-            TaskStatus.FAILED,
+            TaskStatus.FAILED, # type: ignore
             error=str(e)
         )
 
@@ -133,7 +124,7 @@ async def get_task_status(task_id: str):
         raise HTTPException(status_code=500, detail=f"获取任务状态失败: {str(e)}")
 
 # 定期清理旧任务
-@router.on_event("startup")
+@router.on_event("startup") # type: ignore
 @repeat_every(seconds=3600)
 async def cleanup_old_tasks():
     await redis_manager.cleanup_old_tasks()

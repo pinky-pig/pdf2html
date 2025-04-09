@@ -20,6 +20,8 @@ const Home: FC = () => {
     const fileList = file.files;
 
     if (fileList && fileList.length > 0) {
+      setTempUploadFileName('');
+
       const formData = new FormData();
       formData.append('file', fileList[0]);
       const response = await uploadFile(formData);
@@ -231,7 +233,12 @@ const Home: FC = () => {
                           ) : item.status === "failed" ? (
                             '处理失败'
                           ) : (
-                            '处理中...' // 或者显示一个占位符，比如 "处理中..."
+                            <div>
+                                处理中
+                                <span className="blink">.</span>
+                                <span className="blink">.</span>
+                                <span className="blink">.</span>
+                            </div>
                           )}
                         </td>
                       </tr>

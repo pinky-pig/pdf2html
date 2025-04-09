@@ -26,7 +26,7 @@ class RedisManager:
         data = await self.redis.get(f"task:{task_id}")
         return json.loads(data) if data else None
         
-    async def update_task_status(self, task_id: str, status: TaskStatus, result: str = None, error: str = None) -> None:
+    async def update_task_status(self, task_id: str, status: TaskStatus, result:  Optional[str] = None, error:  Optional[str] = None) -> None:
         """更新任务状态"""
         task = await self.get_task(task_id)
         if task:
