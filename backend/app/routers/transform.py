@@ -3,19 +3,21 @@ import subprocess
 import requests
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel, HttpUrl, AnyHttpUrl
+from pydantic import BaseModel, AnyHttpUrl
 from urllib.parse import urlparse
 import shutil
 from ..models.task import TaskStatus
 from fastapi_utils.tasks import repeat_every
 from enum import Enum
-from typing import Optional, Dict
-from datetime import datetime, timedelta
 from ..utils.redis_manager import redis_manager
 import time
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from functools import partial
+
+from pathlib import Path
+from urllib.parse import urlparse
+from urllib.parse import unquote
 
 router = APIRouter(
     prefix="/transform",
@@ -205,55 +207,110 @@ def convert_pdf_to_html(pdf_path: str, output_dir: str) -> tuple[bool, str]:
     except Exception as e:
         return False, f"转换过程出错: {str(e)}"
 
+# def process_pdf_url(pdf_url: str, work_dir: str) -> tuple[bool, str]:
+#     """
+#     处理PDF URL：下载并转换为HTML
+#     """
+#     try:
+#         # 创建临时PDF文件名
+#         temp_pdf = f"{os.path.splitext(os.path.basename(pdf_url))[0]}.pdf"
+#         pdf_path = os.path.join(work_dir, temp_pdf)
+        
+#         # 解析 URL
+#         parsed_url = urlparse(pdf_url)
+        
+#         # 检查是否是本地 uvicorn 服务的文件
+#         if parsed_url.netloc in ['localhost:8090', '127.0.0.1:8090']:
+#             try:
+#                 # 从 URL 路径中提取文件名
+#                 url_path = parsed_url.path
+#                 if url_path.startswith('/uploads/'):
+#                     # 构建源文件的实际路径
+#                     relative_path = url_path.replace('/uploads/', '')
+#                     source_path = Path(UPLOADS_DIR) / relative_path
+                    
+#                     if not source_path.exists():
+#                         return False, f"文件不存在: {source_path}"
+                    
+#                     # 直接复制文件
+#                     shutil.copy2(source_path, pdf_path)
+#                     print(f"本地文件复制成功: {source_path} -> {pdf_path}")
+#                 else:
+#                     return False, "无效的文件路径"
+                    
+#             except Exception as e:
+#                 return False, f"本地文件处理失败: {str(e)}"
+#         else:
+#             # 对于其他URL，使用 requests 下载
+#             success = download_pdf(pdf_url, pdf_path)
+#             if not success:
+#                 return False, "PDF下载失败"
+        
+#         # 转换为HTML
+#         success, result = convert_pdf_to_html(pdf_path, work_dir)
+        
+#         # 清理临时PDF文件
+#         try:
+#             os.remove(pdf_path)
+#         except:
+#             pass
+        
+#         return success, result
+        
+#     except Exception as e:
+#         return False, f"处理失败: {str(e)}"
+
+
 def process_pdf_url(pdf_url: str, work_dir: str) -> tuple[bool, str]:
     """
     处理PDF URL：下载并转换为HTML
     """
     try:
+        work_dir_path = Path(work_dir)
+        work_dir_path.mkdir(parents=True, exist_ok=True)
+
         # 创建临时PDF文件名
-        temp_pdf = f"{os.path.splitext(os.path.basename(pdf_url))[0]}.pdf"
-        pdf_path = os.path.join(work_dir, temp_pdf)
-        
+        temp_pdf = Path(pdf_url).stem + ".pdf"
+        pdf_path = work_dir_path / temp_pdf
+
         # 解析 URL
         parsed_url = urlparse(pdf_url)
-        
+
         # 检查是否是本地 uvicorn 服务的文件
         if parsed_url.netloc in ['localhost:8090', '127.0.0.1:8090']:
             try:
-                # 从 URL 路径中提取文件名
-                url_path = parsed_url.path
+                url_path = unquote(parsed_url.path)
                 if url_path.startswith('/uploads/'):
                     # 构建源文件的实际路径
                     relative_path = url_path.replace('/uploads/', '')
                     source_path = Path(UPLOADS_DIR) / relative_path
-                    
+
                     if not source_path.exists():
                         return False, f"文件不存在: {source_path}"
-                    
-                    # 直接复制文件
+
                     shutil.copy2(source_path, pdf_path)
                     print(f"本地文件复制成功: {source_path} -> {pdf_path}")
                 else:
                     return False, "无效的文件路径"
-                    
+
             except Exception as e:
                 return False, f"本地文件处理失败: {str(e)}"
         else:
             # 对于其他URL，使用 requests 下载
-            success = download_pdf(pdf_url, pdf_path)
+            success = download_pdf(pdf_url, str(pdf_path))
             if not success:
                 return False, "PDF下载失败"
-        
+
         # 转换为HTML
-        success, result = convert_pdf_to_html(pdf_path, work_dir)
-        
+        success, result = convert_pdf_to_html(str(pdf_path), str(work_dir_path))
+
         # 清理临时PDF文件
         try:
-            os.remove(pdf_path)
+            pdf_path.unlink()
         except:
             pass
-        
+
         return success, result
-        
+
     except Exception as e:
         return False, f"处理失败: {str(e)}"

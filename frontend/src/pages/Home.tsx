@@ -66,7 +66,7 @@ const Home: FC = () => {
   useEffect(() => {
     convertHistory.forEach(async (item) => {
       console.log('页面加载完成，开始轮询任务状态')
-      if (item.status === 'pending') {
+      if (item.status !== 'completed' ) {
         const status = await pollTaskStatus(item.taskId);
         updateHistoryItem(item.taskId, {
           status: status.status,
@@ -124,7 +124,7 @@ const Home: FC = () => {
     <>
       <BackgroundEffect />
 
-      <div className={`relative min-h-screen p-8 font-mono text-sm flex flex-col justify-start items-start overflow-hidden }`}>
+      <div className={`bg-white relative min-h-screen p-8 font-mono text-sm flex flex-col justify-start items-start overflow-hidden }`}>
 
         <motion.div
           className=" z-10 gap-8 flex flex-col"
@@ -141,7 +141,7 @@ const Home: FC = () => {
             <div className="flex items-center gap-2 font-medium">
               <a className="flex items-center gap-2" href="/">blog</a> /
               <a href="https://twitter.com/shadcn" target="_blank" rel="noreferrer">twitter</a> /
-              <a href="https://github.com/shadcn" target="_blank" rel="noreferrer">github</a>
+              <a href="https://github.com/pinky-pig/pdf2html" target="_blank" rel="noreferrer">github</a>
             </div>
           </motion.div>
 
@@ -175,7 +175,7 @@ const Home: FC = () => {
               <span
                 className={`text-xs font-mono ${tempUploadFileName ? 'text-black' : 'text-gray-400'}`}
               >
-                {tempUploadFileName || '点击选择文件'}
+                {tempUploadFileName || '点击选择文件EN NAME'}
               </span>
             </p>
 
@@ -185,7 +185,7 @@ const Home: FC = () => {
               className="h-7 w-16 flex-shrink-0 px-2 bg-[#e0e0e0] border border-[#919191] text-black no-underline"
             >转换</button>
 
-            <input onChange={handleGetFileFromInput} className="hidden" accept="application/pdf" type="file" id="file" />
+            <input accept="application/pdf" onChange={handleGetFileFromInput} className="hidden" type="file" id="file" />
           </motion.div>
 
           <motion.div
@@ -220,7 +220,7 @@ const Home: FC = () => {
                         <td className="border border-gray-300 p-2">{item.originalFile.name}</td>
                         <td className="border border-gray-300 p-2">{item.status}</td>
                         <td className="border border-gray-300 p-2">
-                          {item.result ? (
+                          {item.status === "completed" ? (
                             <a
                               href={'http://localhost:8090' + item.result}
                               target="_blank"
@@ -228,6 +228,8 @@ const Home: FC = () => {
                             >
                               查看结果
                             </a>
+                          ) : item.status === "failed" ? (
+                            '处理失败'
                           ) : (
                             '处理中...' // 或者显示一个占位符，比如 "处理中..."
                           )}

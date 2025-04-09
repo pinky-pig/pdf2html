@@ -17,3 +17,4 @@ fastapi-utils>=0.8.0
 redis>=4.5.5
 aioredis>=2.0.0
 typing-inspect>=0.8.0
+fastapi_utils>=0.8.0
