@@ -39,11 +39,6 @@ pdf2htmlEX --zoom 1.3 paper.pdf
 docker run -ti --rm --mount src="$(pwd)",target=/pdf,type=bind pdf2htmlex/pdf2htmlex:0.18.8.rc2-master-20200820-ubuntu-20.04-x86_64 --zoom 1.3 paper.pdf
 ```
 
-
-
-
-
-
 ## Tech Stack
 
 ### Backend
@@ -56,5 +51,36 @@ docker run -ti --rm --mount src="$(pwd)",target=/pdf,type=bind pdf2htmlex/pdf2ht
 - React
 - TypeScript
 - Tailwind CSS
-- React Query
-- Recharts for data visualization
+
+```bash
+cd backend
+```
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+```
+
+
+```bash
+pip install -r requirements.txt
+```
+
+```bash
+python main.py
+```
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+3. Start the development server:
+   ```bash
+   pnpm dev
+   ```
