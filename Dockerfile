@@ -8,33 +8,17 @@ COPY frontend/ ./
 # Make sure build script runs in non-interactive mode
 RUN CI=true pnpm build
 
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# 安装基本依赖
-RUN apk add --no-cache \
-    fontconfig \
-    glib \
-    libxcb \
-    libx11 \
-    fuse \
+# 安装基本依赖和 curl（用于与 pdf2htmlex 服务通信）
+RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
-    postgresql-dev \
-    musl-dev \
-    libstdc++ \
-    libgcc \
-    linux-headers \
-    && pip install --no-cache-dir -U pip setuptools wheel
-
-# 复制并安装 pdf2htmlEX
-COPY backend/pdf2htmlEX-0.18.8.rc1-master-20200630-alpine-3.12.0-x86_64.tar.gz /tmp/
-RUN tar xzf /tmp/pdf2htmlEX-0.18.8.rc1-master-20200630-alpine-3.12.0-x86_64.tar.gz -C / && \
-    rm -f /tmp/pdf2htmlEX-0.18.8.rc1-master-20200630-alpine-3.12.0-x86_64.tar.gz && \
-    # 确保所有必要的库都存在
-    ln -sf /usr/lib/libstdc++.so.6 /usr/local/lib/libstdc++.so.6 && \
-    ln -sf /usr/lib/libgcc_s.so.1 /usr/local/lib/libgcc_s.so.1
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies with retry mechanism
 COPY backend/requirements.txt ./
