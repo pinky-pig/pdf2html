@@ -8,22 +8,33 @@ COPY frontend/ ./
 # Make sure build script runs in non-interactive mode
 RUN CI=true pnpm build
 
-FROM python:3.11-bullseye
+FROM python:3.11-alpine
 
 WORKDIR /app
 
-# 使用国内镜像源并安装依赖
-RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    && apt-get install -y ca-certificates \
+# 安装基本依赖
+RUN apk add --no-cache \
+    fontconfig \
+    glib \
+    libxcb \
+    libx11 \
+    fuse \
     gcc \
     python3-dev \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+    postgresql-dev \
+    musl-dev \
+    libstdc++ \
+    libgcc \
+    linux-headers \
+    && pip install --no-cache-dir -U pip setuptools wheel
+
+# 复制并安装 pdf2htmlEX
+COPY backend/pdf2htmlEX-0.18.8.rc1-master-20200630-alpine-3.12.0-x86_64.tar.gz /tmp/
+RUN tar xzf /tmp/pdf2htmlEX-0.18.8.rc1-master-20200630-alpine-3.12.0-x86_64.tar.gz -C / && \
+    rm -f /tmp/pdf2htmlEX-0.18.8.rc1-master-20200630-alpine-3.12.0-x86_64.tar.gz && \
+    # 确保所有必要的库都存在
+    ln -sf /usr/lib/libstdc++.so.6 /usr/local/lib/libstdc++.so.6 && \
+    ln -sf /usr/lib/libgcc_s.so.1 /usr/local/lib/libgcc_s.so.1
 
 # Install dependencies with retry mechanism
 COPY backend/requirements.txt ./
