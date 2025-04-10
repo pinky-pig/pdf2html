@@ -50,6 +50,9 @@ docker pull pdf2htmlex/pdf2htmlex:0.18.8.rc2-master-20200820-ubuntu-20.04-x86_64
 python main.py
 ```
 
+访问地址：
+http://localhost:8000
+
 ### 前端
 
 1. 进入目录
@@ -66,6 +69,15 @@ pnpm install
 ```bash
 pnpm dev
 ```
+访问地址：
+http://localhost:5173
+
+
+## API 文档
+
+后端起来之后，访问 API 文档地址：
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
 ## 爬坑
 
