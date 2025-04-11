@@ -173,7 +173,7 @@ const Home: FC = () => {
               <span
                 className={`text-xs font-mono ${tempUploadFileName ? 'text-black' : 'text-gray-400'}`}
               >
-                {tempUploadFileName || '点击选择文件EN NAME'}
+                {tempUploadFileName || '点击选择文件 「英文文件名」'}
               </span>
             </p>
 

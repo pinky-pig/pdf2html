@@ -86,11 +86,17 @@ http://localhost:5173
 不过 pdf2htmlEX 基础镜像
 
 ```bash
-# build
-docker-compose build
+# 构建并运行
+docker compose -f 'docker-compose.yml' up -d --build 
 
-# 运行
-docker-compose up -d
+# 压缩发给别人
+docker save -o pdf2html-web.tar.gz pdf2html-web
+docker save -o redis-alpine.tar.gz redis-alpine
+
+# 别人运行
+docker load -i < pdf2html-web.tar.gz
+docker load -i < redis-alpine.tar.gz
+docker compose -f docker-compose-run.yml up -d
 ```
 
 ## 爬坑
