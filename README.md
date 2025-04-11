@@ -79,6 +79,20 @@ http://localhost:5173
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
+
+### 构建
+
+构建镜像的时候，将 pdf2htmlEX 作为基础镜像，安装 python 和 pip ，安装依赖，启动服务。
+不过 pdf2htmlEX 基础镜像
+
+```bash
+# build
+docker-compose build
+
+# 运行
+docker-compose up -d
+```
+
 ## 爬坑
 
 > https://github.com/pdf2htmlEX/pdf2htmlEX/issues/80
