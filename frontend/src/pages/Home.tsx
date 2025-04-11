@@ -16,12 +16,12 @@ const Home: FC = () => {
   }
 
   async function handleUploadFile() {
+    // todo: transform之后需要将 input 的文件清空，否则不会触发 onchange
     const file = document.getElementById('file') as HTMLInputElement;
     const fileList = file.files;
-
+    
     if (fileList && fileList.length > 0) {
       setTempUploadFileName('');
-
       const formData = new FormData();
       formData.append('file', fileList[0]);
       const response = await uploadFile(formData);
@@ -114,13 +114,6 @@ const Home: FC = () => {
       checkStatus();
     });
   }
-
-  async function handleOpenFile(htmlFileUrl: string) {
-    if (htmlFileUrl) {
-      window.open(htmlFileUrl, '_blank');
-    }
-  }
-
 
   return (
     <>

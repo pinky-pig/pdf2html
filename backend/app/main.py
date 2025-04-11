@@ -1,7 +1,6 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
 from .routers import transform, upload
 import os
 from pathlib import Path
@@ -40,13 +39,13 @@ if Path(STATIC_DIR).exists():
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 # task_redis启动
-@app.on_event("startup")
+@app.on_event("startup") # type: ignore
 async def startup_event():
     # Redis 连接已在 RedisManager 初始化时建立
     pass
 
 # task_redis关闭
-@app.on_event("shutdown")
+@app.on_event("shutdown") # type: ignore
 async def shutdown_event():
     # 关闭 Redis 连接
     await redis_manager.redis.close()

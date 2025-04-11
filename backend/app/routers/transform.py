@@ -13,6 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from functools import partial
+from typing import Tuple
 
 from pathlib import Path
 from urllib.parse import urlparse
@@ -165,7 +166,7 @@ def download_pdf(url: str, save_path: str) -> bool:
         print(f"其他错误: {str(e)}")
         return False
 
-def convert_pdf_to_html(pdf_path: str, output_dir: str) -> tuple[bool, str]:
+def convert_pdf_to_html(pdf_path: str, output_dir: str) -> Tuple[bool, str]:
     """
     使用pdf2htmlEX将PDF转换为HTML
     """
@@ -176,16 +177,29 @@ def convert_pdf_to_html(pdf_path: str, output_dir: str) -> tuple[bool, str]:
         # 生成唯一的输出文件名
         pdf_name = f"{os.path.splitext(os.path.basename(pdf_path))[0]}"
         output_html = os.path.join(output_dir, f"{pdf_name}.html")
-        
-        # 构建docker命令
-        cmd = [
-            "docker", "run", "-ti", "--rm",
-            "--mount", f"src={os.path.dirname(os.path.abspath(pdf_path))},target=/pdf,type=bind",
-            "pdf2htmlex/pdf2htmlex:0.18.8.rc2-master-20200820-ubuntu-20.04-x86_64",
-            "--zoom", "1.3",
-            "--process-outline", "0",
-            f"/pdf/{os.path.basename(pdf_path)}",
-        ]
+
+        # 通过环境变量判断是否在 Docker 环境中 dev|prod
+        is_in_docker = os.getenv('IS_IN_DOCKER', 'false').lower() == 'true'
+
+        if is_in_docker:
+            # 在 Docker 环境中直接使用 pdf2htmlEX
+            cmd = [
+                "pdf2htmlEX",
+                "--zoom", "1.3",
+                "--process-outline", "0",
+                "--dest-dir", "/app/uploads/converts",
+                pdf_path,
+            ]
+        else:
+            # 在开发环境中使用 docker run
+            cmd = [
+                "docker", "run", "-ti", "--rm",
+                "--mount", f"src={os.path.dirname(os.path.abspath(pdf_path))},target=/pdf,type=bind",
+                "pdf2htmlex/pdf2htmlex:0.18.8.rc2-master-20200820-ubuntu-20.04-x86_64",
+                "--zoom", "1.3",
+                "--process-outline", "0",
+                f"/pdf/{os.path.basename(pdf_path)}",
+            ]
         
         # 执行转换命令
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -198,7 +212,7 @@ def convert_pdf_to_html(pdf_path: str, output_dir: str) -> tuple[bool, str]:
     except Exception as e:
         return False, f"转换过程出错: {str(e)}"
 
-def process_pdf_url(pdf_url: str, work_dir: str) -> tuple[bool, str]:
+def process_pdf_url(pdf_url: str, work_dir: str) -> Tuple[bool, str]:
     """
     处理PDF URL：下载并转换为HTML
     """

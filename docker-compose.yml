@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   web:
     build: .
@@ -5,31 +7,15 @@ services:
       - "8090:8000"
     environment:
       - REDIS_URL=redis://redis:6379
-      - PDF2HTMLEX_SERVICE=pdf2htmlex-service
     depends_on:
       - redis
-      - pdf2htmlex
-    networks:
-      - app-network
 
   redis:
     image: redis:alpine
     ports:
-      - "6380:6379"
+      - "6379:6379"
     volumes:
       - redis_data:/data
-    networks:
-      - app-network
-
-  pdf2htmlex:
-    image: pdf2htmlex/pdf2htmlex:0.18.8.rc2-master-20200820-ubuntu-20.04-x86_64
-    container_name: pdf2htmlex-service
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
 
 volumes:
   redis_data: 
