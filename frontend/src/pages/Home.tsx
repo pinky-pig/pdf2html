@@ -21,12 +21,15 @@ const Home: FC = () => {
     const fileList = file.files;
     
     if (fileList && fileList.length > 0) {
-      setTempUploadFileName('');
       const formData = new FormData();
       formData.append('file', fileList[0]);
       const response = await uploadFile(formData);
 
       handleTransFile('http://localhost:8090' + response.url, fileList[0])
+
+      // 清空文件
+      setTempUploadFileName('');
+      file.value = '';
     }
     else {
       alert('请先选择文件')
